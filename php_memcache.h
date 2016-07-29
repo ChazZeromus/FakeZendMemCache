@@ -65,6 +65,8 @@ PHP_FUNCTION(memcache_decrement);
 PHP_FUNCTION(memcache_close);
 PHP_FUNCTION(memcache_flush);
 
+PHP_FUNCTION(zend_shm_cache_store);
+
 #define PHP_MEMCACHE_VERSION "3.0.8"
 
 #define MMC_DEFAULT_TIMEOUT 1				/* seconds */

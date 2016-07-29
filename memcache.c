@@ -66,6 +66,9 @@ zend_function_entry memcache_functions[] = {
 	PHP_FE(memcache_decrement,				NULL)
 	PHP_FE(memcache_close,					NULL)
 	PHP_FE(memcache_flush,					NULL)
+
+	PHP_FE(zend_shm_cache_store,            NULL)
+
 	{NULL, NULL, NULL}
 };
 
@@ -335,6 +338,7 @@ PHP_MINFO_FUNCTION(memcache)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "memcache support", "enabled");
+	php_info_print_table_header(2, "Emulate zend_* store/fetch functions", "yup");
 	php_info_print_table_row(2, "Version", PHP_MEMCACHE_VERSION);
 	php_info_print_table_row(2, "Revision", "$Revision: 329835 $");
 	php_info_print_table_end();
@@ -1053,6 +1057,21 @@ static void php_mmc_failure_callback(mmc_pool_t *pool, mmc_t *mmc, void *param T
 	}
 }
 /* }}} */
+
+PHP_FUNCTION(zend_shm_cache_store)
+{
+	char* key;
+	zval* mixed;
+	long* ttl;
+
+	const char* return_string = "hello";
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz|l", &key, &key, &ttl) == FAILURE) {
+		return;
+	}
+
+	RETURN_STRINGL(return_string, 5, 1);
+}
 
 static void php_mmc_set_failure_callback(mmc_pool_t *pool, zval *mmc_object, zval *callback TSRMLS_DC)  /* {{{ */
 {
