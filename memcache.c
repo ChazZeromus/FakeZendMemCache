@@ -1076,11 +1076,12 @@ PHP_FUNCTION(zend_set_connection)
 		RETURN_FALSE;
 	}
 
+
 	zval_dtor(&global_zend_connection);
 
-	global_zend_connection = *resource;
+	ZVAL_COPY_VALUE(&global_zend_connection, resource);
 
-	zval_copy_ctor(resource);
+	zval_copy_ctor(&global_zend_connection);
 }
 
 PHP_FUNCTION(zend_get_connection)
@@ -1090,11 +1091,8 @@ PHP_FUNCTION(zend_get_connection)
 		RETURN_FALSE;
 	}
 
-	zval_dtor(&return_value);
-
-	*return_value = global_zend_connection;
-
-	zval_copy_ctor(&global_zend_connection);
+	ZVAL_COPY_VALUE(return_value, &global_zend_connection);
+	zval_copy_ctor(return_value);
 }
 
 PHP_FUNCTION(zend_shm_cache_store)
