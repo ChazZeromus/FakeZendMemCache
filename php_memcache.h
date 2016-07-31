@@ -66,6 +66,7 @@ PHP_FUNCTION(memcache_close);
 PHP_FUNCTION(memcache_flush);
 
 PHP_FUNCTION(zend_shm_cache_store);
+PHP_FUNCTION(zend_shm_cache_fetch);
 PHP_FUNCTION(zend_set_connection);
 PHP_FUNCTION(zend_get_connection);
 

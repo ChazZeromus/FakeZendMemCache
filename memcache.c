@@ -72,6 +72,7 @@ zend_function_entry memcache_functions[] = {
 	PHP_FE(zend_set_connection,             NULL)
 	PHP_FE(zend_get_connection,             NULL)
 	PHP_FE(zend_shm_cache_store,            NULL)
+	PHP_FE(zend_shm_cache_fetch,            NULL)
 
 	{NULL, NULL, NULL}
 };
@@ -1095,6 +1096,12 @@ PHP_FUNCTION(zend_get_connection)
 	zval_copy_ctor(return_value);
 }
 
+#define CHECK_ZEND_CONNECTION \
+	if (Z_TYPE(global_zend_connection) != IS_OBJECT) { \
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "zend_set_connection needs to be set first!"); \
+		RETURN_FALSE; \
+	}
+
 PHP_FUNCTION(zend_shm_cache_store)
 {
 	// zend_shm_cache_store(string key, mixed value, int ttl);
@@ -1107,78 +1114,110 @@ PHP_FUNCTION(zend_shm_cache_store)
 
 	int num_args = ZEND_NUM_ARGS();
 
-	printf("line: %d\n", __LINE__);
 
 	if (zend_parse_parameters(num_args TSRMLS_CC, "sz|l", &key, &key_length, &value, &ttl) == FAILURE) {
 		printf("parse failure");
 		RETURN_FALSE;
 	}
 
-	printf("key: %s, key_len: %d, value: %s, ttl: %d", key, key_length, Z_STRVAL_P(value), ttl);
-
-	
-	printf("line: %d\n", __LINE__);
-
-	if (num_args < 3) {
-		ttl = 600;
-	}
-	printf("line: %d\n", __LINE__);
+	CHECK_ZEND_CONNECTION;
 
 	// printf("key: %s, value: %s, ttl: %d", key, Z_STRVAL_P(value), ttl);
 
 	zval* f_key;
 	zval* f_flag;
 	zval* f_exptime;
-	printf("line: %d\n", __LINE__);
 
 	MAKE_STD_ZVAL(f_key);
 	MAKE_STD_ZVAL(f_flag);
 	MAKE_STD_ZVAL(f_exptime);
-	printf("line: %d, %x\n", __LINE__, key);
 
 	ZVAL_STRING(f_key, key, 1);
-	printf("line: %d\n", __LINE__);
 
 	ZVAL_LONG(f_flag   , 0);
-	printf("line: %d\n", __LINE__);
 
 	ZVAL_LONG(f_exptime, 0);
-	printf("line: %d\n", __LINE__);
 
-
-	zval* params[] = { f_key, value, f_flag, f_exptime };
+	zval* params[] = { &global_zend_connection, f_key, value, f_flag, f_exptime };
 	zend_uint param_count = 4;
 
 	if (num_args > 2) {
-		param_count = 4;
+		param_count = 5;
 	}
-	printf("line: %d\n", __LINE__);
 
 	zval* function_name;
 	MAKE_STD_ZVAL(function_name);
 	ZVAL_STRING(function_name, "memcache_set", 1);
-	printf("line: %d\n", __LINE__);
 
 	if (!IS_CALLABLE(function_name, 0, NULL)) {
     	printf("not callable!");
     	RETURN_FALSE;
     }
-	printf("line: %d\n", __LINE__);
 
 	int result = call_user_function(
-        EG(function_table), NULL, function_name,
-        return_value, param_count, params TSRMLS_CC
+        CG(function_table),  // HashTable *function_table,
+        NULL      ,          // zval **object_pp,
+        function_name,       // zval *function_name,
+        return_value,        // zval *retval_ptr,
+        param_count,         // zend_uint param_count,
+        params TSRMLS_DC     // zval *params[] TSRMLS_DC
     );
-	printf("line: %d\n", __LINE__);
 
 	if (result != SUCCESS) {
 		printf("call failed! %d", result);
+		return;
 	}
 
-/*
 	zval_dtor(function_name);
+
 	zval_dtor(f_key);
-	zval_dtor(f_exptime);*/
+
+	zval_dtor(f_exptime);
+
+	zval_dtor(f_flag);
+}
+
+PHP_FUNCTION(zend_shm_cache_fetch)
+{
+	// zend_shm_cache_store(string key, mixed value, int ttl);
+	// memcache_set(object memcache, mixed key [, mixed var [, int flag [, int exptime ] ] ])
+
+	zval* value;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) == FAILURE) {
+		printf("parse failure");
+		RETURN_FALSE;
+	}
+
+	CHECK_ZEND_CONNECTION;
+
+	zval* params[] = { &global_zend_connection, value };
+	zend_uint param_count = 2;
+
+	zval* function_name;
+	MAKE_STD_ZVAL(function_name);
+	ZVAL_STRING(function_name, "memcache_get", 1);
+
+	if (!IS_CALLABLE(function_name, 0, NULL)) {
+    	printf("not callable!");
+    	RETURN_FALSE;
+    }
+
+	int result = call_user_function(
+        CG(function_table),  // HashTable *function_table,
+        NULL      ,          // zval **object_pp,
+        function_name,       // zval *function_name,
+        return_value,        // zval *retval_ptr,
+        param_count,         // zend_uint param_count,
+        params TSRMLS_DC     // zval *params[] TSRMLS_DC
+    );
+
+	if (result != SUCCESS) {
+		printf("call failed! %d", result);
+		return;
+	}
+
+	zval_dtor(function_name);
 }
 
 static void php_mmc_set_failure_callback(mmc_pool_t *pool, zval *mmc_object, zval *callback TSRMLS_DC)  /* {{{ */
