@@ -71,8 +71,15 @@ zend_function_entry memcache_functions[] = {
 
 	PHP_FE(zend_set_connection,             NULL)
 	PHP_FE(zend_get_connection,             NULL)
+
 	PHP_FE(zend_shm_cache_store,            NULL)
 	PHP_FE(zend_shm_cache_fetch,            NULL)
+	PHP_FE(zend_shm_cache_delete,           NULL)
+
+	PHP_FE(zend_disk_cache_store,            NULL)
+	PHP_FE(zend_disk_cache_fetch,            NULL)
+	PHP_FE(zend_disk_cache_delete,           NULL)
+
 
 	{NULL, NULL, NULL}
 };
@@ -1279,6 +1286,64 @@ PHP_FUNCTION(zend_shm_cache_fetch)
 	}
 
 	zval_dtor(function_name);
+}
+
+PHP_FUNCTION(zend_shm_cache_delete)
+{
+	// zend_shm_cache_delete(string key);
+	// memcache_delete(object memcache, mixed key)
+
+	zval* value;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) == FAILURE) {
+		printf("parse failure");
+		RETURN_FALSE;
+	}
+
+	CHECK_ZEND_CONNECTION;
+
+	zval* params[] = { &global_zend_connection, value };
+	zend_uint param_count = 2;
+
+	zval* function_name;
+	MAKE_STD_ZVAL(function_name);
+	ZVAL_STRING(function_name, "memcache_delete", 1);
+
+	if (!IS_CALLABLE(function_name, 0, NULL)) {
+    	printf("not callable!");
+    	RETURN_FALSE;
+    }
+
+	int result = call_user_function(
+        CG(function_table),  // HashTable *function_table,
+        NULL      ,          // zval **object_pp,
+        function_name,       // zval *function_name,
+        return_value,        // zval *retval_ptr,
+        param_count,         // zend_uint param_count,
+        params TSRMLS_DC     // zval *params[] TSRMLS_DC
+    );
+
+	if (result != SUCCESS) {
+		printf("call failed! %d", result);
+		return;
+	}
+
+	zval_dtor(function_name);
+}
+
+PHP_FUNCTION(zend_disk_cache_store)
+{
+	ZEND_FN(zend_shm_cache_store)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_FUNCTION(zend_disk_cache_fetch)
+{
+	ZEND_FN(zend_shm_cache_fetch)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+PHP_FUNCTION(zend_disk_cache_delete)
+{
+	ZEND_FN(zend_shm_cache_delete)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
 static void php_mmc_set_failure_callback(mmc_pool_t *pool, zval *mmc_object, zval *callback TSRMLS_DC)  /* {{{ */
