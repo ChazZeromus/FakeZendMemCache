@@ -35,6 +35,7 @@ extern zend_module_entry memcache_module_entry;
 
 PHP_MINIT_FUNCTION(memcache);
 PHP_MSHUTDOWN_FUNCTION(memcache);
+PHP_RSHUTDOWN_FUNCTION(memcache);
 PHP_MINFO_FUNCTION(memcache);
 
 PHP_NAMED_FUNCTION(zif_memcache_pool_connect);

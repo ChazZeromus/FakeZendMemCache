@@ -130,7 +130,7 @@ zend_module_entry memcache_module_entry = {
 	PHP_MINIT(memcache),
 	PHP_MSHUTDOWN(memcache),
 	NULL,
-	NULL,
+	PHP_RSHUTDOWN(memcache),
 	PHP_MINFO(memcache),
 #if ZEND_MODULE_API_NO >= 20010901
 	PHP_MEMCACHE_VERSION,
@@ -301,10 +301,21 @@ static void php_memcache_init_globals(zend_memcache_globals *memcache_globals_p 
 }
 /* }}} */
 
+PHP_RSHUTDOWN_FUNCTION(memcache)
+{
+	printf("request shutdown\n");
+
+	zval_dtor(&global_zend_connection);
+	ZVAL_NULL(&global_zend_connection);
+
+	return SUCCESS;
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(memcache)
 {
+	printf("minit!\n");
 	zend_class_entry ce;
 
 	INIT_CLASS_ENTRY(ce, "MemcachePool", php_memcache_pool_class_functions);
@@ -349,6 +360,7 @@ PHP_MINIT_FUNCTION(memcache)
  */
 PHP_MSHUTDOWN_FUNCTION(memcache)
 {
+	printf("shutdown!\n");
 	UNREGISTER_INI_ENTRIES();
 	return SUCCESS;
 }
@@ -1128,7 +1140,7 @@ void try_zend_connect() {
 	MAKE_STD_ZVAL(return_value);
 	MAKE_STD_ZVAL(function_name);
 
-	ZVAL_STRING(host , MEMCACHE_G(zend_default_host), 1);
+	ZVAL_STRING(host ,  (char*) MEMCACHE_G(zend_default_host), 1);
 	ZVAL_LONG(port    , MEMCACHE_G(zend_default_port));
 	ZVAL_LONG(timeout , MEMCACHE_G(zend_default_timeout));
 
@@ -1151,9 +1163,14 @@ void try_zend_connect() {
     	return;
     }
 
-    ZVAL_COPY_VALUE(&global_zend_connection, return_value);
+    if (Z_TYPE_P(return_value) == IS_OBJECT) {
+	    ZVAL_COPY_VALUE(&global_zend_connection, return_value);
 
-    zval_copy_ctor(&global_zend_connection);
+	    zval_copy_ctor(&global_zend_connection);
+	} else {
+		ZVAL_FALSE(return_value);
+	}
+
     zval_dtor(return_value);
 
     printf("Successfully default-connected to: %s:%d\n", Z_STRVAL_P(host), Z_LVAL_P(port));
@@ -1170,6 +1187,20 @@ void try_zend_connect() {
 	} \
 }
 
+#if 0
+
+#define ZEND_STAR_PREFACE \
+{ \
+	printf("Zend preface %d\n", __LINE__); \
+	RETURN_FALSE; \
+}
+
+#else
+
+#define ZEND_STAR_PREFACE
+
+#endif
+
 PHP_FUNCTION(zend_shm_cache_store)
 {
 	// zend_shm_cache_store(string key, mixed value, int ttl);
@@ -1181,6 +1212,8 @@ PHP_FUNCTION(zend_shm_cache_store)
 	long ttl = 0;
 
 	int num_args = ZEND_NUM_ARGS();
+
+	// ZEND_STAR_PREFACE;
 
 
 	if (zend_parse_parameters(num_args TSRMLS_CC, "sz|l", &key, &key_length, &value, &ttl) == FAILURE) {
@@ -1252,6 +1285,8 @@ PHP_FUNCTION(zend_shm_cache_fetch)
 
 	zval* value;
 
+	ZEND_STAR_PREFACE;
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) == FAILURE) {
 		printf("parse failure");
 		RETURN_FALSE;
@@ -1259,7 +1294,12 @@ PHP_FUNCTION(zend_shm_cache_fetch)
 
 	CHECK_ZEND_CONNECTION;
 
-	zval* params[] = { &global_zend_connection, value };
+	zval* conn;
+    MAKE_STD_ZVAL(conn);
+    ZVAL_COPY_VALUE(conn, &global_zend_connection);
+    zval_copy_ctor(conn);
+
+	zval* params[] = { conn, value };
 	zend_uint param_count = 2;
 
 	zval* function_name;
@@ -1271,6 +1311,7 @@ PHP_FUNCTION(zend_shm_cache_fetch)
     	RETURN_FALSE;
     }
 
+    
 	int result = call_user_function(
         CG(function_table),  // HashTable *function_table,
         NULL      ,          // zval **object_pp,
@@ -1292,6 +1333,9 @@ PHP_FUNCTION(zend_shm_cache_delete)
 {
 	// zend_shm_cache_delete(string key);
 	// memcache_delete(object memcache, mixed key)
+
+	ZEND_STAR_PREFACE;
+
 
 	zval* value;
 
