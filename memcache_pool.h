@@ -409,6 +409,10 @@ ZEND_BEGIN_MODULE_GLOBALS(memcache)
 	long session_redundancy;
 	long compress_threshold;
 	long lock_timeout;
+	long zend_default_host;
+	long zend_default_port;
+	long zend_default_timeout;
+	char* zend_default_enable;
 ZEND_END_MODULE_GLOBALS(memcache)
 
 #ifdef ZTS

@@ -270,6 +270,11 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_ENTRY("memcache.session_redundancy",	"2",			PHP_INI_ALL, OnUpdateRedundancy,	session_redundancy,	zend_memcache_globals,	memcache_globals)
 	STD_PHP_INI_ENTRY("memcache.compress_threshold",	"20000",		PHP_INI_ALL, OnUpdateCompressThreshold,	compress_threshold,	zend_memcache_globals,	memcache_globals)
 	STD_PHP_INI_ENTRY("memcache.lock_timeout",			"15",			PHP_INI_ALL, OnUpdateLockTimeout,		lock_timeout,		zend_memcache_globals,	memcache_globals)
+
+	STD_PHP_INI_ENTRY("memcache.zend_default_host",     "localhost", PHP_INI_ALL, OnUpdateString,  zend_default_host, zend_memcache_globals,	memcache_globals)
+	STD_PHP_INI_ENTRY("memcache.zend_default_port",     "11211",     PHP_INI_ALL, OnUpdateLong,  zend_default_port,   zend_memcache_globals,	memcache_globals)
+	STD_PHP_INI_ENTRY("memcache.zend_default_timeout",  "5000",     PHP_INI_ALL, OnUpdateLong,  zend_default_timeout,   zend_memcache_globals,	memcache_globals)
+	STD_PHP_INI_ENTRY("memcache.zend_default_enable",   "0",         PHP_INI_ALL, OnUpdateLong,  zend_default_enable,   zend_memcache_globals,	memcache_globals)
 PHP_INI_END()
 /* }}} */
 
@@ -1096,11 +1101,67 @@ PHP_FUNCTION(zend_get_connection)
 	zval_copy_ctor(return_value);
 }
 
+#define ZEND_CONN_FALSE() (Z_TYPE(global_zend_connection) == IS_BOOL && Z_BVAL(global_zend_connection) == 0)
+#define ZEND_CONN_SET() (Z_TYPE(global_zend_connection) == IS_OBJECT)
+
+void try_zend_connect() {
+
+	// printf("zend_connect: %d\n", __LINE__);
+
+	if (!MEMCACHE_G(zend_default_enable)) {
+		php_error_docref(NULL TSRMLS_CC, E_ERROR, "Default memcache connection not enabled set for zend functions!");
+		return;
+	}
+
+	zval* host, *port, *timeout, *return_value, *function_name;
+
+	MAKE_STD_ZVAL(host);
+	MAKE_STD_ZVAL(port);
+	MAKE_STD_ZVAL(timeout);
+	MAKE_STD_ZVAL(return_value);
+	MAKE_STD_ZVAL(function_name);
+
+	ZVAL_STRING(host , MEMCACHE_G(zend_default_host), 1);
+	ZVAL_LONG(port    , MEMCACHE_G(zend_default_port));
+	ZVAL_LONG(timeout , MEMCACHE_G(zend_default_timeout));
+
+	ZVAL_STRING(function_name, "memcache_connect", 1);
+
+	zval* arguments[] = { host, port, timeout };
+	long param_count = 3;
+
+	int result = call_user_function(
+        CG(function_table),  // HashTable *function_table,
+        NULL      ,          // zval **object_pp,
+        function_name,       // zval *function_name,
+        return_value,        // zval *retval_ptr,
+        param_count,         // zend_uint param_count,
+        arguments TSRMLS_DC  // zval *params[] TSRMLS_DC
+    );
+
+    if (result != SUCCESS) {
+    	printf("call failed: %d", result);
+    	return;
+    }
+
+    ZVAL_COPY_VALUE(&global_zend_connection, return_value);
+
+    zval_copy_ctor(&global_zend_connection);
+    zval_dtor(return_value);
+
+    printf("Successfully default-connected to: %s:%d\n", Z_STRVAL_P(host), Z_LVAL_P(port));
+}
+
 #define CHECK_ZEND_CONNECTION \
-	if (Z_TYPE(global_zend_connection) != IS_OBJECT) { \
+{ \
+	if (!ZEND_CONN_SET() && !ZEND_CONN_FALSE()) { \
+		try_zend_connect(); \
+	} \
+	if (ZEND_CONN_FALSE()) { \
 		php_error_docref(NULL TSRMLS_CC, E_ERROR, "zend_set_connection needs to be set first!"); \
 		RETURN_FALSE; \
-	}
+	} \
+}
 
 PHP_FUNCTION(zend_shm_cache_store)
 {
