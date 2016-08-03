@@ -315,7 +315,6 @@ PHP_RSHUTDOWN_FUNCTION(memcache)
  */
 PHP_MINIT_FUNCTION(memcache)
 {
-	printf("minit!\n");
 	zend_class_entry ce;
 
 	INIT_CLASS_ENTRY(ce, "MemcachePool", php_memcache_pool_class_functions);
@@ -360,7 +359,6 @@ PHP_MINIT_FUNCTION(memcache)
  */
 PHP_MSHUTDOWN_FUNCTION(memcache)
 {
-	printf("shutdown!\n");
 	UNREGISTER_INI_ENTRIES();
 	return SUCCESS;
 }
@@ -1173,7 +1171,7 @@ void try_zend_connect() {
 
     zval_dtor(return_value);
 
-    printf("Successfully default-connected to: %s:%d\n", Z_STRVAL_P(host), Z_LVAL_P(port));
+    // printf("Successfully default-connected to: %s:%d\n", Z_STRVAL_P(host), Z_LVAL_P(port));
 }
 
 #define CHECK_ZEND_CONNECTION \
