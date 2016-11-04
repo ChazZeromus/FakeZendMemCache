@@ -303,8 +303,6 @@ static void php_memcache_init_globals(zend_memcache_globals *memcache_globals_p 
 
 PHP_RSHUTDOWN_FUNCTION(memcache)
 {
-	printf("request shutdown\n");
-
 	zval_dtor(&global_zend_connection);
 	ZVAL_NULL(&global_zend_connection);
 
